@@ -1,2 +1,13 @@
 Hello, This is my first github repo.
 All about Android.Thanks!
+
+Outline:
+1.Demos
+  [1]AsyncImageDecode:
+	(1)Async decode online image. 
+	(2)Make a memory cache pool to storge image bitmap.
+	(3)ListView "Loading More" Style.
+  [2]TestClickAndTouch
+	The sample code about onClick and onTouch how to pass the finger event.
+  [3]TestAudioFocus
+	The sample code show the audio focus.
