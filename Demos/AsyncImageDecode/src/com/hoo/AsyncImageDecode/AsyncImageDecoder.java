@@ -321,12 +321,13 @@ public class AsyncImageDecoder
 		}
 
 		DecodeTask task = new DecodeTask(key, path, position, varargs);
-		add(task);
+		this.add(task);
 
 		if (mNonUiHandler != null)
 		{
 			if (mNonUiHandler.hasMessages(DECODE))
 			{
+				Log.e(TAG, "Message DECODE is exist, return");
 				return;
 			}
 			mNonUiHandler.sendEmptyMessageDelayed(DECODE, 50);
@@ -359,7 +360,8 @@ public class AsyncImageDecoder
 			}
 
 			DecodeTask task = new DecodeTask(key, path, position, varargs);
-			add(task);
+			this.add(task);
+			Log.d(TAG, "[add] task = "+task.toString());
 
 			if (mNonUiHandler != null)
 			{
@@ -375,7 +377,7 @@ public class AsyncImageDecoder
 		}
 		else
 		{
-			add(key, path, position, varargs);
+			this.add(key, path, position, varargs);
 		}
 	}
 
@@ -402,12 +404,13 @@ public class AsyncImageDecoder
 		}
 
 		DecodeTask task = new DecodeTask(key, path, position, notScale, varargs);
-		add(task);
+		this.add(task);
 
 		if (mNonUiHandler != null)
 		{
 			if (mNonUiHandler.hasMessages(DECODE))
 			{
+				Log.e(TAG, "Message DECODE is exist, return");
 				return;
 			}
 			mNonUiHandler.sendEmptyMessageDelayed(DECODE, 50);
@@ -435,12 +438,13 @@ public class AsyncImageDecoder
 		}
 
 		DecodeTask task = new DecodeTask(key, albumId, position, varargs);
-		add(task);
+		this.add(task);
 
 		if (mNonUiHandler != null)
 		{
 			if (mNonUiHandler.hasMessages(DECODE))
 			{
+				Log.e(TAG, "Message DECODE is exist, return");
 				return;
 			}
 			mNonUiHandler.sendEmptyMessageDelayed(DECODE, 50);
@@ -468,12 +472,13 @@ public class AsyncImageDecoder
 		}
 
 		DecodeTask task = new DecodeTask(key, afd, position, varargs);
-		add(task);
+		this.add(task);
 
 		if (mNonUiHandler != null)
 		{
 			if (mNonUiHandler.hasMessages(DECODE))
 			{
+				Log.e(TAG, "Message DECODE is exist, return");
 				return;
 			}
 			mNonUiHandler.sendEmptyMessageDelayed(DECODE, 50);
@@ -504,12 +509,13 @@ public class AsyncImageDecoder
 		}
 
 		DecodeTask task = new DecodeTask(key, path, albumId, position, varargs);
-		add(task);
+		this.add(task);
 
 		if (mNonUiHandler != null)
 		{
 			if (mNonUiHandler.hasMessages(DECODE))
 			{
+				Log.e(TAG, "Message DECODE is exist, return");
 				return;
 			}
 			mNonUiHandler.sendEmptyMessageDelayed(DECODE, 50);
@@ -629,7 +635,7 @@ public class AsyncImageDecoder
 		{
 			return;
 		}
-		Log.d(TAG, "resumeDecode");
+		Log.d(TAG, "do resumeDecode");
 		mPause = false;
 		synchronized (mSyncObject)
 		{
@@ -880,7 +886,9 @@ public class AsyncImageDecoder
 			try
 			{
 				if (assetFileDes != null)
+				{
 					assetFileDes.close();
+				}
 			}
 			catch (IOException e)
 			{
@@ -980,6 +988,7 @@ public class AsyncImageDecoder
                     bmp = tmp;
                 }
             }
+	    	Log.d(TAG, "[decodeByURL] Scaled : width="+bmp.getWidth()+",height="+bmp.getHeight());
 			Log.d(TAG, "[decodeByURL] + End, return bmp:" + bmp);
 			return bmp;
 		}
@@ -1013,12 +1022,12 @@ public class AsyncImageDecoder
 						{
 							if (mListener != null && !mPause)
 							{
-								Log.d(TAG, "onImageDecoded: " + task.toString());
+								Log.d(TAG, "[handleMessage], is Pause ,task: " + task.toString());
 								mListener.onImageDecoded(task.mKey, task.mBitmap, task.mTimeStamp, task.mVarargs);
 							}
 							else
 							{
-								Log.d(TAG, "Decoder paused, recycle current bitmap: " + task.toString());
+								Log.e(TAG, "[handleMessage]Decoder paused, recycle current bitmap: " + task.toString());
 								if (null != task.mBitmap)
 								{
 									task.mBitmap.recycle();
@@ -1031,12 +1040,12 @@ public class AsyncImageDecoder
 						{
 							if (mListener != null)
 							{
-								Log.d(TAG, "onImageDecoded: " + task.toString());
+								Log.d(TAG, "[handleMessage] not Pause. task: " + task.toString());
 								mListener.onImageDecoded(task.mKey, task.mBitmap, task.mTimeStamp, task.mVarargs);
 							}
 							else
 							{
-								Log.d(TAG, "onImageDecoded mListener == null, recycle bitmap");
+								Log.e(TAG, "[handleMessage]onImageDecoded mListener == null, recycle bitmap");
 								if (null != task.mBitmap)
 								{
 									task.mBitmap.recycle();

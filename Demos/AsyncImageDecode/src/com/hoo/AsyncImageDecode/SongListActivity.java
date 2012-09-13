@@ -15,12 +15,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import com.hoo.AysncImageDecode.R;
+
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -40,8 +41,9 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 /**
- * (1)Test Listview Async Decode Image
- * (2)Loading More Action While Drop to LisView Bottom
+ * (1)Test Listview Async Decode Image (2)Loading More Action While Drop to
+ * LisView Bottom
+ * 
  * @author kesenhoo
  * @since 2012-09-12
  * 
@@ -49,33 +51,32 @@ import android.widget.TextView;
 public class SongListActivity extends Activity implements OnScrollListener
 {
 	// Define Request Online Song Value
-	private static final int		REQUEST_SONG_COUNT			= 20;
-	private static final int		THE_SONG_NUM				= 100;
+	private static final int				REQUEST_SONG_COUNT	= 20;
+	private static final int				THE_SONG_NUM		= 100;
 
-	private static final String		TAG							= "[AsyncImageDecodeDemo]";
-	private int						mStartIdx					= 0;
-	private ListView				mTrackListView				= null;
-	private TrackListAdapter		mAdapter					= null;
-	private ArrayList<WrapperSong>	mTrackList					= new ArrayList<WrapperSong>();
-	private ArrayList<WrapperSong>	mSongList					= null;
-	private boolean					shouldRefresh				= false;
-	private boolean					isActivityResumed			= false;
-	private boolean					isRefreshing				= false;
-	private boolean					mIsEmptyList				= true;
-	private boolean					mLoadingViewIsShown			= false;
-	private boolean					mPrepareGettingMore			= false;
-	private ProgressDialog			mProgressDialog				= null;
-	
+	private static final String				TAG					= "[AsyncImageDecodeDemo]";
+	private int								mStartIdx			= 0;
+	private ListView						mTrackListView		= null;
+	private TrackListAdapter				mAdapter			= null;
+	private ArrayList<WrapperSong>			mTrackListData		= new ArrayList<WrapperSong>();
+	private ArrayList<WrapperSong>			mSongListData		= null;
+	private boolean							shouldRefresh		= false;
+	private boolean							isActivityResumed	= false;
+	private boolean							isRefreshing		= false;
+	private boolean							mIsEmptyList		= true;
+	private boolean							mLoadingViewIsShown	= false;
+	private boolean							mPrepareGettingMore	= false;
+	private ProgressDialog					mProgressDialog		= null;
+	private MemoryCacheMBitmapByPosition	mMemoryCacheBmp		= new MemoryCacheMBitmapByPosition(100);
 
 	protected void onCreate(Bundle paramBundle)
 	{
-		Log.d(TAG, "This is onCreate + Begin");
+		Log.i(TAG, "This is onCreate + Begin");
 		super.onCreate(paramBundle);
 		setContentView(R.layout.activity_main);
 
 		// Non-UI thread...
-		HandlerThread thread = new HandlerThread("SongListActivity",
-				Process.THREAD_PRIORITY_BACKGROUND);
+		HandlerThread thread = new HandlerThread("SongListActivity", Process.THREAD_PRIORITY_BACKGROUND);
 		thread.start();
 		mNonUILooper = thread.getLooper();
 		mNonUIHandler = new NonUIHandler(mNonUILooper);
@@ -92,7 +93,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 
 		mTrackListView.setAdapter(mAdapter);
 		mProgressDialog = new ProgressDialog(this);
-		Log.d(TAG, "This is onCreate + End");
+		Log.i(TAG, "This is onCreate + End");
 	}
 
 	/**
@@ -100,7 +101,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 	 */
 	protected void onDestroy()
 	{
-		Log.d(TAG, "This is onDestroy + Begin");
+		Log.i(TAG, "This is onDestroy + Begin");
 		super.onDestroy();
 
 		if (mAdapter != null && mAdapter.mDecoder != null)
@@ -135,14 +136,19 @@ public class SongListActivity extends Activity implements OnScrollListener
 		}
 		// Non-UI thread... end
 
-		if (mTrackList != null)
+		if (mTrackListData != null)
 		{
-			mTrackList.clear();
+			mTrackListData.clear();
 		}
 		mNonUIHandler = null;
-		mTrackList = null;
-
-		Log.d(TAG, "This is onDestroy + End");
+		mTrackListData = null;
+		mSongListData = null;
+		
+		if(null != mMemoryCacheBmp)
+		{
+			mMemoryCacheBmp.clear();
+        }
+		Log.i(TAG, "This is onDestroy + End");
 	}
 
 	/**
@@ -157,7 +163,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 
 	protected void onResume()
 	{
-		Log.e(TAG, "This is onResume + Begin");
+		Log.i(TAG, "This is onResume + Begin");
 		super.onResume();
 		isActivityResumed = true;
 		if (mAdapter != null)
@@ -173,13 +179,13 @@ public class SongListActivity extends Activity implements OnScrollListener
 			Log.d(TAG, "[onResume] sendEmptyMessage GET_SONG_LIST");
 			mNonUIHandler.sendEmptyMessage(GET_SONG_LIST);
 		}
-		Log.d(TAG, "This is onResume + End");
+		Log.i(TAG, "This is onResume + End");
 	}
 
 	@Override
 	protected void onPause()
 	{
-		Log.d(TAG, "This is onPause + Begin");
+		Log.i(TAG, "This is onPause + Begin");
 		super.onPause();
 		isActivityResumed = false;
 		// Pause Decode
@@ -192,7 +198,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 			}
 		}
 		super.onPause();
-		Log.d(TAG, "This is onPause + End");
+		Log.i(TAG, "This is onPause + End");
 	}
 
 	protected ArrayList<WrapperSong> getTrackList()
@@ -232,9 +238,9 @@ public class SongListActivity extends Activity implements OnScrollListener
 		try
 		{
 			DefaultHttpClient mDefaultHttpClient = new DefaultHttpClient();
-			mDefaultHttpClient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT,6000);
+			mDefaultHttpClient.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 6000);
 			mDefaultHttpClient.getParams().setParameter(CoreConnectionPNames.SO_TIMEOUT, 6000);
-			//The Test API
+			// The Test API
 			String strUrl = "http://music.weibo.com/yueku/cooperate/htc/get_wpp_songs.php";
 			Log.e(TAG, "HttpString:" + strUrl.toString());
 
@@ -243,8 +249,8 @@ public class SongListActivity extends Activity implements OnScrollListener
 			StringBuilder mStringBuilder = new StringBuilder();
 			if (localHttpResponse.getStatusLine().getStatusCode() == HttpStatus.SC_OK)
 			{
-				BufferedReader mBufferedReader = new BufferedReader(new InputStreamReader(
-						localHttpResponse.getEntity().getContent()));
+				BufferedReader mBufferedReader = new BufferedReader(new InputStreamReader(localHttpResponse
+						.getEntity().getContent()));
 				for (String str = mBufferedReader.readLine(); str != null; str = mBufferedReader.readLine())
 				{
 					mStringBuilder.append(str);
@@ -352,31 +358,31 @@ public class SongListActivity extends Activity implements OnScrollListener
 		{
 			switch (msg.what)
 			{
-			case INVALIDATE_VIEWS:
-				if (mTrackListView != null)
-				{
-					mTrackListView.invalidateViews();
-				}
-				isRefreshing = false;
-				break;
-			case NOTIFY_DATASET_CHANGED:
-				if (mAdapter != null)
-				{
-					mAdapter.notifyDataSetChanged();
-				}
-				isRefreshing = false;
-				break;
-			case HIDE_LOADING_MESSAGE:
-				mProgressDialog.hide();
-				isRefreshing = false;
-				break;
-			case SHOW_LOADING_MESSAGE:
-				mProgressDialog.show();
-				isRefreshing = true;
-				break;
-			case NOTIFY_SONG_LIST_UPDATED:
-				showData();
-				break;
+				case INVALIDATE_VIEWS:
+					if (mTrackListView != null)
+					{
+						mTrackListView.invalidateViews();
+					}
+					isRefreshing = false;
+					break;
+				case NOTIFY_DATASET_CHANGED:
+					if (mAdapter != null)
+					{
+						mAdapter.notifyDataSetChanged();
+					}
+					isRefreshing = false;
+					break;
+				case HIDE_LOADING_MESSAGE:
+					mProgressDialog.hide();
+					isRefreshing = false;
+					break;
+				case SHOW_LOADING_MESSAGE:
+					mProgressDialog.show();
+					isRefreshing = true;
+					break;
+				case NOTIFY_SONG_LIST_UPDATED:
+					showData();
+					break;
 			}
 		}
 	};
@@ -392,12 +398,12 @@ public class SongListActivity extends Activity implements OnScrollListener
 
 	private void showData()
 	{
-		if (mSongList != null && mSongList.size() > 0)
+		if (mSongListData != null && mSongListData.size() > 0)
 		{
-			if (mTrackList != null)
+			if (mTrackListData != null)
 			{
-				mTrackList.addAll(mSongList);
-				mSongList.clear();
+				mTrackListData.addAll(mSongListData);
+				mSongListData.clear();
 				if (mAdapter != null)
 				{
 					mAdapter.notifyDataSetChanged();
@@ -426,7 +432,8 @@ public class SongListActivity extends Activity implements OnScrollListener
 			{
 				if (mTrackListView != null)
 				{
-					// after failed getting data, need set this flag to hide loading view
+					// after failed getting data, need set this flag to hide
+					// loading view
 					// at the end of the list view
 					mPrepareGettingMore = false;
 					mTrackListView.invalidateViews();
@@ -454,37 +461,36 @@ public class SongListActivity extends Activity implements OnScrollListener
 		{
 			switch (msg.what)
 			{
-			case GET_SONG_LIST:
-				try
-				{
-					if (mTrackList == null || mTrackList.size() == 0)
+				case GET_SONG_LIST:
+					try
 					{
-						Log.d(TAG, "Show loading message");
-						mTrackListUiHandler.sendEmptyMessage(SHOW_LOADING_MESSAGE);
-						mIsEmptyList = true;
-					}
-					if (!haveMore())
-					{
-						if (mIsEmptyList)
+						if (mTrackListData == null || mTrackListData.size() == 0)
 						{
-							mTrackListUiHandler.sendEmptyMessage(HIDE_LOADING_MESSAGE);
-							mIsEmptyList = false;
+							Log.d(TAG, "Show loading message");
+							mTrackListUiHandler.sendEmptyMessage(SHOW_LOADING_MESSAGE);
+							mIsEmptyList = true;
 						}
-						return;
+						if (!haveMore())
+						{
+							if (mIsEmptyList)
+							{
+								mTrackListUiHandler.sendEmptyMessage(HIDE_LOADING_MESSAGE);
+								mIsEmptyList = false;
+							}
+							return;
+						}
+						mSongListData = getTrackList();
+						mTrackListUiHandler.sendEmptyMessage(NOTIFY_SONG_LIST_UPDATED);
 					}
-					mSongList = getTrackList();
-					mTrackListUiHandler.sendEmptyMessage(NOTIFY_SONG_LIST_UPDATED);
-				}
-				catch (Exception e)
-				{
-					e.printStackTrace();
-				}
-				break;
-			default:
-				break;
+					catch (Exception e)
+					{
+						e.printStackTrace();
+					}
+					break;
+				default:
+					break;
 			}
 		}
-
 	};
 
 	public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount)
@@ -509,6 +515,11 @@ public class SongListActivity extends Activity implements OnScrollListener
 		{
 			mAdapter.mDecoder.setVisibleRange(start, end);
 		}
+        
+        if (mMemoryCacheBmp != null) 
+        {
+        	mMemoryCacheBmp.setPosition((start + end) / 2);
+        }
 	}
 
 	public void onScrollStateChanged(AbsListView view, int scrollState)
@@ -543,37 +554,32 @@ public class SongListActivity extends Activity implements OnScrollListener
 
 	class TrackListAdapter extends BaseAdapter implements AsyncImageDecoder.IImageDecodeListener
 	{
-		private SongListActivity	mParentActivity;
-		private LayoutInflater		mInflater;
+		private SongListActivity	mParentActivity		= null;
+		private LayoutInflater		mInflater			= null;
 		private View				mLoadingView		= null;
-		BitmapDrawable				mDefaultAlbumIcon;
-		AsyncImageDecoder			mDecoder			= null;
+		private Bitmap				mDefaultBmp			= null;
+		private AsyncImageDecoder	mDecoder			= null;
 		private static final String	FLAG_LOADING_ITEM	= "loadingItem";
 
 		public TrackListAdapter(Context context, SongListActivity activity)
 		{
 			mParentActivity = activity;
 			mInflater = LayoutInflater.from(context);
-
-			Bitmap b = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_launcher);
-			mDefaultAlbumIcon = new BitmapDrawable(b);
-			mDefaultAlbumIcon.setFilterBitmap(false);
-			mDefaultAlbumIcon.setDither(false);
-
-			mDecoder = new AsyncImageDecoder(context, true, this, 200, 200, true);
+			mDefaultBmp = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_launcher);
+			mDecoder = new AsyncImageDecoder(context, true, this, 120, 120, true);
 		}
 
 		@Override
 		public int getCount()
 		{
-			if (mTrackList != null)
+			if (mTrackListData != null)
 			{
-				int cnt = mTrackList.size();
-				if (haveMore() && cnt != 0 && mPrepareGettingMore)
+				int size = mTrackListData.size();
+				if (haveMore() && size != 0 && mPrepareGettingMore)
 				{
-					cnt++;
+					size++;
 				}
-				return cnt;
+				return size;
 			}
 			return 0;
 		}
@@ -581,9 +587,9 @@ public class SongListActivity extends Activity implements OnScrollListener
 		@Override
 		public Object getItem(int position)
 		{
-			if (mTrackList != null && mTrackList.size() > position)
+			if (mTrackListData != null && mTrackListData.size() > position)
 			{
-				return mTrackList.get(position);
+				return mTrackListData.get(position);
 			}
 			return null;
 		}
@@ -597,7 +603,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 		@Override
 		public boolean isEnabled(int position)
 		{
-			return (mTrackList != null && mTrackList.size() > position);
+			return (mTrackListData != null && mTrackListData.size() > position);
 		}
 
 		class ViewHolder
@@ -610,21 +616,21 @@ public class SongListActivity extends Activity implements OnScrollListener
 
 		public View getView(int pos, View convertView, ViewGroup parent)
 		{
-			Log.e(TAG, "This is position:" + pos);
+			Log.e(TAG, "[getView] Begin + This is position:" + pos);
 			final SongListActivity tempActivity = mParentActivity;
 			if (tempActivity == null)
 			{
 				return convertView;
 			}
-			if (mTrackList == null)
+			if (mTrackListData == null)
 			{
 				return convertView;
 			}
 
 			WrapperSong curSong = null;
-			if (mTrackList.size() > pos)
+			if (mTrackListData.size() > pos)
 			{
-				curSong = mTrackList.get(pos);
+				curSong = mTrackListData.get(pos);
 			}
 			else
 			{
@@ -652,7 +658,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 			ViewHolder holder;
 			if (convertView == null || !convertView.getTag().getClass().equals(ViewHolder.class))
 			{
-				Log.e(TAG, "convertView == null,Then inflate and new holder");
+				Log.i(TAG, "convertView == null,Then inflate and new holder");
 				convertView = mInflater.inflate(R.layout.list_item, parent, false);
 				holder = new ViewHolder();
 				holder.listImageView = (ImageView) convertView.findViewById(R.id.ImageView);
@@ -663,11 +669,11 @@ public class SongListActivity extends Activity implements OnScrollListener
 			}
 			else
 			{
-				Log.e(TAG, "convertView != null,Then get Holder");
+				Log.d(TAG, "convertView != null,Then get Holder");
 				holder = (ViewHolder) convertView.getTag();
 			}
 
-			Log.e(TAG, "convertView != null,Then SetValue");
+			Log.i(TAG, "convertView != null,Then SetValue");
 
 			if (holder != null && holder.listImageView != null)
 			{
@@ -681,21 +687,21 @@ public class SongListActivity extends Activity implements OnScrollListener
 				holder.listTextView3.setText("[description]:" + desc);
 			}
 
-			String songImageURL = curSong.getSongImage();
-
 			/*
-			 * TODO:If need add cache , you can do something before add to decode The
-			 * bitmap and decodePath will get from cache
+			 * TODO:If need add cache , you can do something before add to
+			 * decode The bitmap and decodePath will get from cache
 			 */
-			Bitmap bitmap = null;
-			String decodePath = null;
+			String songImageURL = curSong.getSongImage();
+			MBitmap item = mMemoryCacheBmp.pull(pos);
+			Bitmap bitmap = (item == null) ? null : item.getBitmap();
+			String decodePath = (item == null) ? null : item.getPath();
 			if (bitmap == null || bitmap.isRecycled()
 					|| (bitmap != null && !TextUtils.equals(decodePath, songImageURL)))
 			{
-				Log.e(TAG, "bitmap is null.then add to decode queue");
+				Log.d(TAG, "bitmap is null.then add to decode queue");
 				if (mDecoder != null)
 				{
-					Log.e(TAG, "pos:" + pos + ",songImageURL:" + songImageURL);
+					Log.d(TAG, "pos:" + pos + ",songImageURL:" + songImageURL);
 					mDecoder.add(true, pos, songImageURL, pos, songImageURL);
 				}
 				else
@@ -704,10 +710,19 @@ public class SongListActivity extends Activity implements OnScrollListener
 				}
 				if (holder != null && holder.listImageView != null)
 				{
-					Log.e(TAG, "Set Default Album Icon");
-					holder.listImageView.setImageDrawable(mDefaultAlbumIcon);
+					Log.e(TAG, "[getViewWithPhoto] Set Default Album Icon");
+					holder.listImageView.setImageBitmap(mDefaultBmp);
 				}
 			}
+			else
+			{
+				if (holder != null && holder.listImageView != null)
+				{
+					Log.e(TAG, "[getViewWithPhoto] Set Image From Cache");
+					holder.listImageView.setImageBitmap(bitmap);
+				}
+			}
+			Log.e(TAG, "[getView] end + This is position:" + pos);
 			return convertView;
 		}
 
@@ -725,35 +740,42 @@ public class SongListActivity extends Activity implements OnScrollListener
 			int childCount = listView.getChildCount();
 			if (childCount <= 0)
 			{
+				Log.e(TAG, "No List Item Need Update");
 				bitmap.recycle();
 				return;
 			}
-
+			
+			
 			String path = null;
-			if (varargs != null && varargs.length > 0 && varargs[0] != null
-					&& varargs[0] instanceof String)
-			{
-				path = (String) varargs[0];
-			}
-
-			for (int i = 0; i < childCount; i++)
-			{
-				final View ll = listView.getChildAt(i);
-				if (ll != null)
-				{
-					final ImageView localImageView = (ImageView) ll.findViewById(R.id.ImageView);
-					if (localImageView == null)
-					{
-						return;
-					}
-					Integer integer = (Integer) localImageView.getTag();
-					if (integer != null && integer.intValue() == position)
-					{
-						Log.e(TAG, "Update the imageView with decode bitmap");
-						localImageView.setImageBitmap(bitmap);
-					}
-				}
-			}
+            if (varargs != null && varargs.length > 0 && varargs[0] != null && varargs[0] instanceof String) 
+            {
+            	path = (String)varargs[0];
+            }
+            MBitmap bmp = new MBitmap(bitmap, path);
+            boolean addToCache = mMemoryCacheBmp.push(position, bmp);
+            if (addToCache) 
+            {
+            	for (int i = 0; i < childCount; i++) 
+            	{
+            		final View ll = listView.getChildAt(i);
+            		
+            		if (ll != null) 
+            		{
+            			final ImageView localImageView = (ImageView) ll.findViewById(R.id.ImageView);
+    					if (localImageView == null)
+    					{
+    						Log.e(TAG, "[onImageDecoded] imageView is null");
+    						return;
+    					}
+    					Integer integer = (Integer) localImageView.getTag();
+    					if (integer != null && integer.intValue() == position)
+    					{
+    						Log.e(TAG, "[onImageDecoded] Update the imageView with online decode bitmap");
+    						localImageView.setImageBitmap(bitmap);
+    					}
+            		}
+            	}                            	
+            }
 			Log.d(TAG, "[onImageDecoded] + [End]");
 		}
 	}
