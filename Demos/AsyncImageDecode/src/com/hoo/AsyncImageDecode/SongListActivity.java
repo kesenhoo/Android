@@ -566,7 +566,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 			mParentActivity = activity;
 			mInflater = LayoutInflater.from(context);
 			mDefaultBmp = BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_launcher);
-			mDecoder = new AsyncImageDecoder(context, true, this, 120, 120, true);
+			mDecoder = new AsyncImageDecoder(context, this, 120, 120, true);
 		}
 
 		@Override
@@ -702,7 +702,7 @@ public class SongListActivity extends Activity implements OnScrollListener
 				if (mDecoder != null)
 				{
 					Log.d(TAG, "pos:" + pos + ",songImageURL:" + songImageURL);
-					mDecoder.add(true, pos, songImageURL, pos, songImageURL);
+					mDecoder.add(pos, songImageURL, pos, songImageURL);
 				}
 				else
 				{
