@@ -2,7 +2,7 @@ Hello, This is my first github repo.
 All about Android.Thanks!
 
 Outline:
-1.Demos
+**1.Demos**
   [1]AsyncImageDecode:
 	(1)Async decode online image. 
 	(2)Make a memory cache pool to storge image bitmap.
@@ -10,4 +10,7 @@ Outline:
   [2]TestClickAndTouch
 	The sample code about onClick and onTouch how to pass the finger event.
   [3]TestAudioFocus
-	The sample code show the audio focus.
+	The sample code show the audio focus
+
+**2.BitmapFun: Displaying Bitmaps Efficiently**
+Learn how to use common techniques to process and load Bitmap objects in a way that keeps your user interface (UI) components responsive and avoids exceeding your application memory limit.
