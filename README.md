@@ -12,6 +12,7 @@ The sample code about onClick and onTouch how to pass the finger event.
 ## TestAudioFocus
 The sample code show the audio focus
 
+## Displaying Bitmaps Efficiently
 ## BitmapFun: Displaying Bitmaps Efficiently
 Learn how to use common techniques to process and load Bitmap objects in a way that keeps your user interface (UI) components responsive and avoids exceeding your application memory limit. 
 
@@ -20,3 +21,8 @@ Compare the three different implementations
 * no asynchronous task
 * no bitmap to task association with asynchronous task 
 * The final correct version
+
+## ThreadSample
+* Running in a Background Service
+* Loading Data in the Background
+* Sending Operations to Multiple Threads
