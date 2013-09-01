@@ -21,6 +21,7 @@ import android.graphics.Bitmap;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
+import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -33,6 +34,7 @@ import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -164,10 +166,10 @@ public class ImageFetcher extends ImageResizer {
     }
 
     /**
-    * Simple network connection check.
-    *
-    * @param context
-    */
+     * Simple network connection check.
+     *
+     * @param context
+     */
     private void checkConnection(Context context) {
         final ConnectivityManager cm =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -190,56 +192,89 @@ public class ImageFetcher extends ImageResizer {
             Log.d(TAG, "processBitmap - " + data);
         }
 
+        Bitmap bitmap = null;
+
         final String key = ImageCache.hashKeyForDisk(data);
         FileDescriptor fileDescriptor = null;
         FileInputStream fileInputStream = null;
         DiskLruCache.Snapshot snapshot;
-        synchronized (mHttpDiskCacheLock) {
-            // Wait for disk cache to initialize
-            while (mHttpDiskCacheStarting) {
-                try {
-                    mHttpDiskCacheLock.wait();
-                } catch (InterruptedException e) {}
-            }
+        //@Kesen: Tricky. Need fine tune
+        if (data.startsWith("http") || data.startsWith("https")
+                || data.startsWith("HTTP") || data.startsWith("HTTPS")) {
+            //@Kesen: Online Resource
+            synchronized (mHttpDiskCacheLock) {
+                // Wait for disk cache to initialize
+                while (mHttpDiskCacheStarting) {
+                    try {
+                        mHttpDiskCacheLock.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
 
-            if (mHttpDiskCache != null) {
-                try {
-                    snapshot = mHttpDiskCache.get(key);
-                    if (snapshot == null) {
-                        if (BuildConfig.DEBUG) {
-                            Log.d(TAG, "processBitmap, not found in http cache, downloading...");
+                if (mHttpDiskCache != null) {
+                    try {
+                        snapshot = mHttpDiskCache.get(key);
+                        if (snapshot == null) {
+                            if (BuildConfig.DEBUG) {
+                                Log.d(TAG, "processBitmap, not found in http cache, downloading...");
+                            }
+                            DiskLruCache.Editor editor = mHttpDiskCache.edit(key);
+                            if (editor != null) {
+                                if (downloadUrlToStream(data,
+                                        editor.newOutputStream(DISK_CACHE_INDEX))) {
+                                    editor.commit();
+                                } else {
+                                    editor.abort();
+                                }
+                            }
+                            snapshot = mHttpDiskCache.get(key);
                         }
-                        DiskLruCache.Editor editor = mHttpDiskCache.edit(key);
-                        if (editor != null) {
-                            if (downloadUrlToStream(data,
-                                    editor.newOutputStream(DISK_CACHE_INDEX))) {
-                                editor.commit();
-                            } else {
-                                editor.abort();
+                        if (snapshot != null) {
+                            fileInputStream =
+                                    (FileInputStream) snapshot.getInputStream(DISK_CACHE_INDEX);
+                            fileDescriptor = fileInputStream.getFD();
+                        }
+                    } catch (IOException e) {
+                        Log.e(TAG, "processBitmap - " + e);
+                    } catch (IllegalStateException e) {
+                        Log.e(TAG, "processBitmap - " + e);
+                    } finally {
+                        if (fileDescriptor == null && fileInputStream != null) {
+                            try {
+                                fileInputStream.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
                             }
                         }
-                        snapshot = mHttpDiskCache.get(key);
                     }
-                    if (snapshot != null) {
-                        fileInputStream =
-                                (FileInputStream) snapshot.getInputStream(DISK_CACHE_INDEX);
-                        fileDescriptor = fileInputStream.getFD();
+                }
+            }
+        } else if (data.startsWith(Environment.getExternalStorageDirectory().getAbsolutePath())) {
+            //@Kesen: Sdcard Resource
+            bitmap = decodeSampledBitmapFromFile(data, mImageWidth, mImageHeight, getImageCache());
+        } else {
+            //@Kesen: Asset Resource
+            InputStream is = null;
+            try {
+                if (mContext != null) {
+                    is = mContext.getAssets().open(data);
+                }
+                bitmap = decodeSampledBitmapFromInputStream(is, mImageWidth, mImageHeight, getImageCache());
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                try {
+                    if (is != null) {
+                        is.close();
                     }
                 } catch (IOException e) {
-                    Log.e(TAG, "processBitmap - " + e);
-                } catch (IllegalStateException e) {
-                    Log.e(TAG, "processBitmap - " + e);
-                } finally {
-                    if (fileDescriptor == null && fileInputStream != null) {
-                        try {
-                            fileInputStream.close();
-                        } catch (IOException e) {}
-                    }
+                    e.printStackTrace();
                 }
             }
         }
 
-        Bitmap bitmap = null;
+        //Online resource
         if (fileDescriptor != null) {
             bitmap = decodeSampledBitmapFromDescriptor(fileDescriptor, mImageWidth,
                     mImageHeight, getImageCache());
@@ -247,7 +282,9 @@ public class ImageFetcher extends ImageResizer {
         if (fileInputStream != null) {
             try {
                 fileInputStream.close();
-            } catch (IOException e) {}
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         return bitmap;
     }
@@ -293,7 +330,9 @@ public class ImageFetcher extends ImageResizer {
                 if (in != null) {
                     in.close();
                 }
-            } catch (final IOException e) {}
+            } catch (final IOException e) {
+                e.printStackTrace();
+            }
         }
         return false;
     }

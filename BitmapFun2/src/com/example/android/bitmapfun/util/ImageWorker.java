@@ -50,6 +50,7 @@ public abstract class ImageWorker {
     protected boolean mPauseWork = false;
     private final Object mPauseWorkLock = new Object();
 
+    protected Context mContext;
     protected Resources mResources;
 
     private static final int MESSAGE_CLEAR = 0;
@@ -58,6 +59,7 @@ public abstract class ImageWorker {
     private static final int MESSAGE_CLOSE = 3;
 
     protected ImageWorker(Context context) {
+        mContext = context;
         mResources = context.getResources();
     }
 
@@ -258,7 +260,9 @@ public abstract class ImageWorker {
                 while (mPauseWork && !isCancelled()) {
                     try {
                         mPauseWorkLock.wait();
-                    } catch (InterruptedException e) {}
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
 
@@ -385,8 +389,9 @@ public abstract class ImageWorker {
                             drawable
                     });
             // Set background to loading bitmap
-            imageView.setBackgroundDrawable(
-                    new BitmapDrawable(mResources, mLoadingBitmap));
+            // @Kesen: mark this deprecated code
+            //imageView.setBackgroundDrawable(
+            //        new BitmapDrawable(mResources, mLoadingBitmap));
 
             imageView.setImageDrawable(td);
             td.startTransition(FADE_IN_TIME);
